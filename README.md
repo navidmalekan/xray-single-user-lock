@@ -6,7 +6,8 @@ Lock V2Ray/Xray users to a single IP per port using nftables. Prevents account s
 Run directly from GitHub:
 
 ```bash
-bash <(curl -Ls [https://raw.githubusercontent.com/navidmalekan/xray-nftables-manager/main/xray-nft-menu.sh](https://raw.githubusercontent.com/navidmalekan/xray-single-user-lock/main/xray-nft-manager.sh))
+bash <(curl -Ls https://raw.githubusercontent.com/navidmalekan/xray-single-user-lock/main/xray-nft-manager.sh)
+```
 
 # xray-single-user-lock
 
@@ -87,8 +88,8 @@ This ensures only one client IP can use each assigned port.
 
 ### نصب سریع
 ```bash
-bash <(curl -Ls [https://raw.githubusercontent.com/navidmalekan/xray-nftables-manager/main/xray-nft-menu.sh](https://raw.githubusercontent.com/navidmalekan/xray-single-user-lock/main/xray-nft-manager.sh))
-
+bash <(curl -Ls https://raw.githubusercontent.com/navidmalekan/xray-single-user-lock/main/xray-nft-manager.sh)
+```
 
 
 
