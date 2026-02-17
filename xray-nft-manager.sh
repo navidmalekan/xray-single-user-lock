@@ -30,6 +30,7 @@ mkdir -p /etc/nftables.d
 cat > "$NFT_FILE" <<'EOF'
 table inet xray_concurrency {
 
+  # Filled by sync script (listening user ports only)
   set listen_ports {
     type inet_service
     flags dynamic
@@ -53,8 +54,10 @@ table inet xray_concurrency {
     ct state established,related accept
     ct state invalid drop
 
-    iif "lo" tcp dport 10000-65535 accept
+    # localhost bypass (do not create locks from local checks)
+    iif "lo" tcp dport @listen_ports accept
 
+    # lock ONLY for ports in listen_ports
     tcp flags & (syn|ack) == syn ct state new tcp dport @listen_ports \
       tcp dport . ip saddr @owner4 \
       update @taken_ports { tcp dport } \
@@ -79,27 +82,33 @@ cat > "$SYNC_SCRIPT" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-FROM=10000
-TO=65535
+TABLE_FAMILY="inet"
+TABLE_NAME="xray_concurrency"
+SET_NAME="listen_ports"
+
+# process names considered Xray/V2Ray
+XRAY_REGEX='xray|v2ray'
 
 ports="$(
-  ss -H -ltn 2>/dev/null \
+  ss -H -ltnp 2>/dev/null \
+  | grep -Ei "$XRAY_REGEX" \
   | awk '{print $4}' \
   | sed -nE 's/.*:([0-9]+)$/\1/p' \
-  | awk -v a="$FROM" -v b="$TO" '$1>=a && $1<=b' \
   | sort -n | uniq
 )"
 
-if ! nft list set inet xray_concurrency listen_ports >/dev/null 2>&1; then
+# if nft table/set not ready yet → exit quietly
+if ! nft list set "$TABLE_FAMILY" "$TABLE_NAME" "$SET_NAME" >/dev/null 2>&1; then
   exit 0
 fi
 
-nft flush set inet xray_concurrency listen_ports || true
+# refresh set
+nft flush set "$TABLE_FAMILY" "$TABLE_NAME" "$SET_NAME" || true
 
-[[ -z "$ports" ]] && exit 0
+[[ -z "${ports}" ]] && exit 0
 
 elems="$(echo "$ports" | paste -sd, -)"
-nft add element inet xray_concurrency listen_ports "{ $elems }"
+nft add element "$TABLE_FAMILY" "$TABLE_NAME" "$SET_NAME" "{ ${elems} }"
 EOF
 
 chmod +x "$SYNC_SCRIPT"
@@ -161,7 +170,7 @@ nft list set inet xray_concurrency owner4 | wc -l || true
 echo
 
 echo "Listening ports:"
-ss -ltn | grep -E '10000|[1-6][0-9]{4}' || true
+ss -ltn || true
 echo
 
 echo "Conntrack count:"
